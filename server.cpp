@@ -149,7 +149,7 @@ void *client_function(void *socket_desc)
 	{
 		pthread_mutex_lock (&mutex); //lock mutex
 
-		array = parsedFromString["code"];
+		clientID = parsedFromString["code"];
 
 		std::list<struct activeClient>::iterator it;
 		
