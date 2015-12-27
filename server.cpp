@@ -372,7 +372,7 @@ void *client_function(void *socket_desc)
 		if(findList!=++notification_list.end())
 		{
 			Json::Value value;
-			value["type"]="notification";
+			value["state"]="notification";
 			value["app"]=notif_smartphone.package;
 			value["person"]=notif_smartphone.name;
 			value["text"]=notif_smartphone.text;
