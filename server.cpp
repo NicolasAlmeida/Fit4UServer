@@ -153,7 +153,7 @@ void *client_function(void *socket_desc)
 
 		std::list<struct activeClient>::iterator it;
 		
-		if((it=search_client(activeClient_list,array.asString()))!=(++activeClient_list.end()))
+		if((it=search_client(activeClient_list,clientID.asString()))!=(++activeClient_list.end()))
 		{
 			Json::StreamWriterBuilder builder;
 			
