@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<iostream>
 #include<fstream>
+#include<algorithm>
 #include<string.h>
 #include<stdlib.h>
 #include<sys/socket.h>
@@ -14,8 +15,8 @@
 using namespace std;
 
 /*------------------------------PROTO------------------------------*/
-std::list<struct notification>::iterator search_notif(list<struct notification> notif_list,string clientID);
-std::list<struct activeClient>::iterator search_client(list<struct activeClient> list,string clientID);
+std::list<struct notification>::iterator search_notif(list<struct notification> &lista,string clientID);
+std::list<struct activeClient>::iterator search_client(list<struct activeClient> &lista,string clientID);
 const std::string currentDateTime();
 void *client_function(void *);
 /*-----------------------------------------------------------------*/
@@ -25,9 +26,9 @@ void *client_function(void *);
 struct notification
 {
 	string text;
-	string name;
+	string sender;
 	string id;
-	string package;
+	string app;
 };
 
 struct activeClient
@@ -115,7 +116,7 @@ void *client_function(void *socket_desc)
 {
     int sock = *(int*)socket_desc;
     int read_size, i;
-    char *message , client_message[2000], client_sms_aux[2000], id_maq;
+    char client_message[2000], client_sms_aux[2000];
     string output, output_final;
 
     Json::Value parsedFromString;
@@ -153,7 +154,9 @@ void *client_function(void *socket_desc)
 
 		std::list<struct activeClient>::iterator it;
 
-		if((it=search_client(activeClient_list,clientID.asString()))!=(++activeClient_list.end()))
+        it=search_client(activeClient_list,clientID.asString());
+
+		if(it!=activeClient_list.end())
 		{
 			Json::StreamWriterBuilder builder;
 
@@ -161,10 +164,12 @@ void *client_function(void *socket_desc)
 			state["state"]="ok_login";
 
 			string loginState=Json::writeString(builder, state);
-
+			loginState.erase(std::remove(loginState.begin(), loginState.end(), '\n'), loginState.end());
 			loginState+="\n";
 
-			send(sock,loginState.c_str(),loginState.size(),0);
+			cout << loginState << endl;
+
+			write(sock,loginState.c_str(),loginState.size());
 		}
 		else
 		{
@@ -174,7 +179,7 @@ void *client_function(void *socket_desc)
 			state["state"]="error_login";
 
 			string loginState=Json::writeString(builder, state);
-
+			loginState.erase(std::remove(loginState.begin(), loginState.end(), '\n'), loginState.end());
 			loginState+="\n";
 
 			send(sock,loginState.c_str(),loginState.size(),0);
@@ -212,8 +217,8 @@ void *client_function(void *socket_desc)
 			Json::Value state;
 			state["state"]="error_plan";
 
-			string planState=Json::writeString(builder, state);
-
+            string planState=Json::writeString(builder, state);
+			planState.erase(std::remove(planState.begin(), planState.end(), '\n'), planState.end());
 			planState+="\n";
 
 			send(sock,planState.c_str(),planState.size(),0);
@@ -283,7 +288,7 @@ void *client_function(void *socket_desc)
 			error["state"]="error_historic";
 
 			string historic=Json::writeString(builder, error);
-
+			historic.erase(std::remove(historic.begin(), historic.end(), '\n'), historic.end());
 			historic+="\n";
 
 			send(sock,historic.c_str(),historic.size(),0);
@@ -304,6 +309,9 @@ void *client_function(void *socket_desc)
 		clientID = parsedFromString["id"];
 		nfc = parsedFromString["nfctext"];
 
+		Json::Reader readClients;
+        Json::Value rClients;
+
 		if (ifs.is_open())
 		{
 			while (!ifs.eof())
@@ -312,17 +320,26 @@ void *client_function(void *socket_desc)
 				output_final += output;
 			}
 			cout << endl << output_final << endl;
-		}
 
-		std::size_t found = output_final.find(clientID.asString());
+            readClients.parse(output_final,rClients);
 
-		if (found!=std::string::npos)
-		{
-			clientON.nfc=nfc.asString();
-			clientON.id=clientID.asString();
+            if(rClients.isMember("id")==true)
+            {
+                Json::Value rID;
 
-			activeClient_list.push_front(clientON);
-		}
+                rID = rClients["id"];
+
+                if(!clientID.compare(rID))
+                {
+                    clientON.nfc=nfc.asString();
+                    clientON.id=clientID.asString();
+
+                    activeClient_list.push_front(clientON);
+                }
+            }
+        }
+        else
+            cout << "ERROR" << endl;
 
 		ifs.close(); //close file
 
@@ -334,29 +351,39 @@ void *client_function(void *socket_desc)
 	{
 		clientID = parsedFromString["id"];
 
+        string client = clientID.asString();
+
 		std::list<struct activeClient>::iterator findListClient;
 		std::list<struct notification>::iterator findListNotif;
 
-		while((findListClient=search_client(activeClient_list,clientID.asString()))!=++activeClient_list.end())
+		while(1)
 		{
-			activeClient_list.erase(findListClient);
+            findListClient=search_client(activeClient_list,client);
+            if(activeClient_list.empty() || (findListClient==activeClient_list.end()))
+                break;
+            else
+                activeClient_list.erase(findListClient);
 		}
 
-		while((findListNotif=search_notif(notification_list,clientID.asString()))!=++notification_list.end())
+		while(1)
 		{
-			notification_list.erase(findListNotif);
+            findListNotif=search_notif(notification_list,client);
+            if(notification_list.empty() || (findListNotif==notification_list.end()))
+                break;
+            else
+                notification_list.erase(findListNotif);
 		}
 	}
-	else if(!array.compare("notification"))	//receive notification from smartphone
+	else if(!array.compare("NOTIFICATION"))	//receive notification from smartphone
 	{
 		Json::Value client_id = parsedFromString["client_id"];
-		Json::Value text = parsedFromString["text"];
-		Json::Value name = parsedFromString["name"];
-		Json::Value package = parsedFromString["app"];
+		Json::Value text = parsedFromString["context"];
+		Json::Value sender = parsedFromString["sender"];
+		Json::Value app = parsedFromString["app"];
 		notif_smartphone.id=client_id.asString();
 		notif_smartphone.text=text.asString();
-		notif_smartphone.name=name.asString();
-		notif_smartphone.package=package.asString();
+		notif_smartphone.sender=sender.asString();
+		notif_smartphone.app=app.asString();
 
 		notification_list.push_front(notif_smartphone);
 	}
@@ -369,17 +396,18 @@ void *client_function(void *socket_desc)
 
 		std::list<struct notification>::iterator findList = search_notif(notification_list,clientID.asString());
 
-		if(findList!=++notification_list.end())
+		if(findList!=notification_list.end())
 		{
 			Json::Value value;
 			value["state"]="notification";
-			value["app"]=notif_smartphone.package;
-			value["person"]=notif_smartphone.name;
+			value["app"]=notif_smartphone.app;
+			value["person"]=notif_smartphone.sender;
 			value["text"]=notif_smartphone.text;
 
 			string notification=Json::writeString(builder, value);
+            notification.erase(std::remove(notification.begin(), notification.end(), '\n'), notification.end());
 
-			output_final+="\n";
+			notification+="\n";
 
 			send(sock,notification.c_str(),notification.size(),0);
 
@@ -406,34 +434,34 @@ void *client_function(void *socket_desc)
 /*-----------------------------------------------------------------*/
 
 /*--------------------------------SEARCH FUNCTIONS---------------------------------*/
-std::list<struct notification>::iterator search_notif(list<struct notification> list,string clientID)
+std::list<struct notification>::iterator search_notif(list<struct notification> &lista,string clientID)
 {
 	std::list<struct notification>::iterator it;
-	for(it=list.begin();it!=list.end();it++)
+	for(it=lista.begin();it!=lista.end();it++)
 	{
 		if(!clientID.compare((*it).id))
 			break;
 	}
 
-	if(!(it == list.end())) //end of the list
+	if(!(it == lista.end())) //end of the list
 		return it;
 	else
-		return ++list.end();
+		return lista.end();
 }
 
-std::list<struct activeClient>::iterator search_client(list<struct activeClient> list,string clientID)
+std::list<struct activeClient>::iterator search_client(list<struct activeClient> &lista,string clientID)
 {
 	std::list<struct activeClient>::iterator it;
-	for(it=list.begin();it!=list.end();it++)
+	for(it=lista.begin();it!=lista.end();it++)
 	{
 		if(!clientID.compare((*it).id))
 			break;
 	}
 
-	if(!(it == list.end())) //end of the list
+	if(!(it == lista.end())) //end of the list
 		return it;
-	else
-		return ++list.end();
+    else
+		return lista.end();
 }
 /*-----------------------------------------------------------------*/
 /*-----------------------------------------------------------------*/
