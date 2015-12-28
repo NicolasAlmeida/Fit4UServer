@@ -1,16 +1,16 @@
 #include<stdio.h>
 #include<iostream>
 #include<fstream>
-#include<string.h>    
-#include<stdlib.h>   
+#include<string.h>
+#include<stdlib.h>
 #include<sys/socket.h>
-#include<arpa/inet.h> 
-#include<unistd.h>    
-#include<pthread.h> 
+#include<arpa/inet.h>
+#include<unistd.h>
+#include<pthread.h>
 #include<list>
 #include<time.h>
 #include"json.h"
- 
+
 using namespace std;
 
 /*------------------------------PROTO------------------------------*/
@@ -26,7 +26,7 @@ struct notification
 {
 	string text;
 	string name;
-	string id;	
+	string id;
 	string package;
 };
 
@@ -49,10 +49,10 @@ int main(int argc , char *argv[])
 {
 
     int socket_desc , client_sock , c;
-    
+
     struct sockaddr_in server , client;
-    
-     
+
+
     //Create socket
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     if (socket_desc == -1)
@@ -60,50 +60,50 @@ int main(int argc , char *argv[])
         printf("Could not create socket");
     }
     puts("Socket created!");
-     
-    
+
+
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons( 8889 );
-    
-     
+
+
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
-     
+
         perror("bind failed. Error");
         return 1;
     }
     puts("Bind done!");
-     
+
     //Listen
     listen(socket_desc , 3);
-     
+
     puts("Waiting for incoming connections...\n");
 
     c = sizeof(struct sockaddr_in);
     pthread_t thread_fork;
-	
+
     while( (client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
         puts("Connection accepted!");
-         
+
         if( pthread_create( &thread_fork , NULL ,  client_function , (void*) &client_sock) < 0)
         {
             perror("could not create thread");
             return 1;
         }
-         
+
         pthread_detach(thread_fork);
         puts("Handler assigned");
     }
-     
+
     if (client_sock < 0)
     {
         perror("accept failed");
         return 1;
     }
-     
+
     return 0;
 }
 /*-----------------------------------------------------------------*/
@@ -123,14 +123,14 @@ void *client_function(void *socket_desc)
     Json::Reader reader;
     notification notif_smartphone;
     activeClient clientON;
-   
+
     while((read_size=recv(sock, client_message,sizeof(client_message),0))>0)
     {
 
 	for(i=0;;i++)
 	{
 		client_sms_aux[i]=client_message[i];
-		if(client_message[i]='\n')
+		if(client_message[i]=='\n')
 			break;
 	}
 	client_sms_aux[i+1]='\0';
@@ -143,7 +143,7 @@ void *client_function(void *socket_desc)
 		cout << "ERROR json" << endl;
 	}
 		array = parsedFromString["state"];
-		
+
 	/*-----------------------------MACHINE STATION-------------------------------*/
 	if(!array.compare("login"))	//receive login from machine station and send training file for that session
 	{
@@ -152,14 +152,14 @@ void *client_function(void *socket_desc)
 		clientID = parsedFromString["code"];
 
 		std::list<struct activeClient>::iterator it;
-		
+
 		if((it=search_client(activeClient_list,clientID.asString()))!=(++activeClient_list.end()))
 		{
 			Json::StreamWriterBuilder builder;
-			
+
 			Json::Value state;
 			state["state"]="ok_login";
-			
+
 			string loginState=Json::writeString(builder, state);
 
 			loginState+="\n";
@@ -169,10 +169,10 @@ void *client_function(void *socket_desc)
 		else
 		{
 			Json::StreamWriterBuilder builder;
-			
+
 			Json::Value state;
 			state["state"]="error_login";
-			
+
 			string loginState=Json::writeString(builder, state);
 
 			loginState+="\n";
@@ -190,17 +190,17 @@ void *client_function(void *socket_desc)
 		currDate+=".txt";
 		ifstream ifs (currDate.c_str());//open file
 
-		if (ifs.is_open()) 
+		if (ifs.is_open())
 		{
-			while (!ifs.eof()) 
+			while (!ifs.eof())
 			{
 				ifs >> output;
-				output_final += output;	
+				output_final += output;
 			}
 			cout << endl << output_final << endl;
 
 			output_final+="\n";
-		
+
 			write(sock,output_final.c_str(),output_final.size()); //send back the training plan
 
 			output_final.clear();//clear string with training plan
@@ -208,16 +208,16 @@ void *client_function(void *socket_desc)
 		else
 		{
 			Json::StreamWriterBuilder builder;
-			
+
 			Json::Value state;
 			state["state"]="error_plan";
-			
+
 			string planState=Json::writeString(builder, state);
 
 			planState+="\n";
 
 			send(sock,planState.c_str(),planState.size(),0);
-				
+
 		}
 		ifs.close(); //close file
 
@@ -230,14 +230,14 @@ void *client_function(void *socket_desc)
 			for(i=0;;i++)
 			{
 				client_sms_aux[i]=client_message[i];
-				if(client_message[i]='\n')
+				if(client_message[i]=='\n')
 					break;
 			}
 			client_sms_aux[i+1]='\0';
 			strcpy(client_message,client_sms_aux);
-	
+
 			printf("%s\n",client_message);
-		}	
+		}
 
 		ofstream file;
 		string currDate=currentDateTime();
@@ -257,20 +257,20 @@ void *client_function(void *socket_desc)
 
 		string sdate=array.asString();
 		sdate+=".txt";
-		
+
 		ifstream ifs (sdate.c_str());//open file
 
-		if (ifs.is_open()) 
+		if (ifs.is_open())
 		{
-			while (!ifs.eof()) 
+			while (!ifs.eof())
 			{
 				ifs >> output;
-				output_final += output;	
+				output_final += output;
 			}
 			cout << endl << output_final << endl;
 
 			output_final+="\n";
-	
+
 			send(sock,output_final.c_str(),output_final.size(),0); //send back the training plan
 
 			output_final.clear();//clear string with training plan
@@ -278,10 +278,10 @@ void *client_function(void *socket_desc)
 		else //return error if file doesn't exist
 		{
 			Json::StreamWriterBuilder builder;
-			
+
 			Json::Value error;
 			error["state"]="error_historic";
-			
+
 			string historic=Json::writeString(builder, error);
 
 			historic+="\n";
@@ -292,7 +292,7 @@ void *client_function(void *socket_desc)
 		ifs.close(); //close file
 
 		pthread_mutex_unlock (&mutex); //unlock mutex
-	}	
+	}
 	/*---------------------------------------------------------------------------*/
 	/*---------------------------------------------------------------------------*/
 
@@ -304,25 +304,25 @@ void *client_function(void *socket_desc)
 		clientID = parsedFromString["id"];
 		nfc = parsedFromString["nfctext"];
 
-		if (ifs.is_open()) 
+		if (ifs.is_open())
 		{
-			while (!ifs.eof()) 
+			while (!ifs.eof())
 			{
 				ifs >> output;
-				output_final += output;	
+				output_final += output;
 			}
 			cout << endl << output_final << endl;
 		}
-		
+
 		std::size_t found = output_final.find(clientID.asString());
-  		
+
 		if (found!=std::string::npos)
 		{
 			clientON.nfc=nfc.asString();
 			clientON.id=clientID.asString();
-			
+
 			activeClient_list.push_front(clientON);
-		}	
+		}
 
 		ifs.close(); //close file
 
@@ -345,7 +345,7 @@ void *client_function(void *socket_desc)
 		while((findListNotif=search_notif(notification_list,clientID.asString()))!=++notification_list.end())
 		{
 			notification_list.erase(findListNotif);
-		}	
+		}
 	}
 	else if(!array.compare("notification"))	//receive notification from smartphone
 	{
@@ -376,7 +376,7 @@ void *client_function(void *socket_desc)
 			value["app"]=notif_smartphone.package;
 			value["person"]=notif_smartphone.name;
 			value["text"]=notif_smartphone.text;
-	
+
 			string notification=Json::writeString(builder, value);
 
 			output_final+="\n";
@@ -398,9 +398,9 @@ void *client_function(void *socket_desc)
     {
         perror("recv failed");
     }
-         
+
     return 0;
-} 
+}
 
 /*-----------------------------------------------------------------*/
 /*-----------------------------------------------------------------*/
@@ -444,7 +444,7 @@ const std::string currentDateTime() {
     struct tm  tstruct;
     char       buf[80];
     tstruct = *localtime(&now);
-    
+
     strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
 
     return buf;
