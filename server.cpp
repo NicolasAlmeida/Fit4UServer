@@ -16,9 +16,6 @@
 
 using namespace std;
 
-#define CLOCKID_CLOCK_REALTIME
-#define SIG SIGRTMIN
-
 
 /*------------------------------PROTO------------------------------*/
 std::list<struct notification>::iterator search_notif(list<struct notification> &lista,string clientID);
@@ -234,7 +231,7 @@ void *client_function(void *socket_desc)
 
                 output_final+="\n";
 
-                write(sock,output_final.c_str(),output_final.size()); //send back the training plan
+                send(sock,output_final.c_str(),output_final.size(),0); //send back the training plan
 
                 output_final.clear();//clear string with training plan
             }
@@ -258,12 +255,17 @@ void *client_function(void *socket_desc)
         }
         else if(!array.compare("logout"))	//receive logout from machine station and save updated training file
         {
-            Json::Value list_hist;
+            Json::Value list_hist=parsedFromString["list_hist"], new_list;
             Json::StreamWriterBuilder builder;
-            list_hist=parsedFromString["list_hist"];
-            list_hist["list_hist"]=list_hist.asString();
-            list_hist["state"]="logout";
-            string logoutString=Json::writeString(builder, list_hist);
+            Json::Value vec(Json::arrayValue);
+            for(int i=0;i<list_hist.size();i++)
+            {
+                Json::Value data1=list_hist[i];
+                vec.append(data1);
+            }
+            new_list["list_hist"]=vec;
+            new_list["state"]="historic";
+            string logoutString=Json::writeString(builder, new_list);
 
             ofstream file;
             string currDate=currentDateTime();
