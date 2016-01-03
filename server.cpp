@@ -501,7 +501,7 @@ void *send_not(void *)
 
 							notification+="\n";
 
-							send(sdNotif.sock_desc,notification.c_str(),notification.size(),0);
+							send((*findListSend).sock_desc,notification.c_str(),notification.size(),0);
 
 							notification_list.erase(findListNot);
 						}
