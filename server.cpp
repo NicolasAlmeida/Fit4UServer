@@ -474,6 +474,42 @@ void *send_not(void *)
                 }
             }
         }
+        
+        /*
+        if(!notification_list.empty())	//check if exist any pending notifications
+        {
+            Json::StreamWriterBuilder builder;
+			std::list<struct notification>::iterator findListNot;
+			std::list<struct sendNot>::iterator findListSend;
+			
+            if(!sendNot_list.empty())
+            {
+				for(findListSend=sendNot_list.begin();findListSend!=sendNot_list.end();findListSend++)
+				{
+					for(findListNot=notification_list.begin();findListNot!=sendNot_list.end();findListNot++)
+					{
+						if(!(*findListSend).id).compare((*findListNot).id))
+						{
+							Json::Value value;
+							value["state"]="notification";
+							value["app"]=(*findListNot).app;
+							value["person"]=(*findListNot).sender;
+							value["text"]=(*findListNot).text;
+
+							string notification=Json::writeString(builder, value);
+							notification.erase(std::remove(notification.begin(), notification.end(), '\n'), notification.end());
+
+							notification+="\n";
+
+							send(sdNotif.sock_desc,notification.c_str(),notification.size(),0);
+
+							notification_list.erase(findListNot);
+						}
+					}
+				}
+                    
+            }
+        }*/
         pthread_mutex_unlock (&mutex); //lock mutex
 
         sleep(3);
